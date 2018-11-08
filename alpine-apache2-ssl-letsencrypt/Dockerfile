@@ -25,8 +25,6 @@ RUN mkdir -p /usr/src/modsecurity && cd /usr/src/modsecurity \
 	&& ./configure \
 	&& make && make install && make clean
 
-
-
 FROM santiagoandresb:alpine-base
 MAINTAINER Santiago Bergunan (https://github.com/santiagoandresb/docker-alpine)
 
@@ -39,7 +37,7 @@ RUN apk upgrade --update --no-cache \
     	ca-certificates \
     	certbot \
     	git \
-    && rm -rf /var/cache/apk/* 
+    && rm -rf /var/cache/apk/*
 
 RUN sed -i 's/CustomLog logs\/access.log combined/CustomLog logs\/access.log combined env=!dontlog/g' /etc/apache2/httpd.conf && mkdir -p /run/apache2/
 
@@ -57,7 +55,6 @@ RUN mkdir -p /etc/apache2/crs && cd /etc/apache2/crs \
 	&& mv crs-setup.conf.example crs-setup.conf \
 	&& echo "Include /etc/apache2/crs/*.conf" >> /etc/apache2/httpd.conf \
 	&& echo "Include /etc/apache2/crs/rules/*.conf" >> /etc/apache2/httpd.conf
-
 
 COPY --from=build /usr/src/modsecurity/modsecurity.conf-recommended  /etc/apache2/conf.d/modsecurity.conf
 COPY --from=build /usr/src/modsecurity/unicode.mapping  /etc/apache2/conf.d/unicode.mapping
