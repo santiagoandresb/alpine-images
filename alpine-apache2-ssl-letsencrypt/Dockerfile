@@ -2,8 +2,8 @@ FROM santiagoandresb:alpine-base as build
 MAINTAINER Santiago Bergunan (https://github.com/santiagoandresb/docker-alpine)
 
 # Install Prereqs
-RUN apk upgrade --update --no-cache && \
-    apk add --update --no-cache \
+RUN apk upgrade --update --no-cache \
+    && apk add --update --no-cache \
      alpine-sdk      \
      apache2         \
      apache2-dev     \
@@ -19,27 +19,27 @@ RUN apk upgrade --update --no-cache && \
     && rm -rf /var/cache/apk/*
 
 # Download ModSecurity & compile ModSecurity
-RUN mkdir -p /usr/src/modsecurity && cd /usr/src/modsecurity && \
-	git clone https://github.com/SpiderLabs/ModSecurity.git /usr/src/modsecurity && \
-	./autogen.sh && \
-	./configure && \
-	make && make install && make clean
+RUN mkdir -p /usr/src/modsecurity && cd /usr/src/modsecurity \
+	&& git clone https://github.com/SpiderLabs/ModSecurity.git /usr/src/modsecurity \
+	&& ./autogen.sh \
+	&& ./configure \
+	&& make && make install && make clean
 
 
 
 FROM santiagoandresb:alpine-base
 MAINTAINER Santiago Bergunan (https://github.com/santiagoandresb/docker-alpine)
 
-RUN apk upgrade --update --no-cache && \
-    apk add --update --no-cache \
+RUN apk upgrade --update --no-cache \
+    && apk add --update --no-cache \
     	apache2 \
     	apache2-utils \
     	apache2-ssl \
     	apache2-proxy \
     	ca-certificates \
-    	certbot && \
+    	certbot \
     	git \
-    rm -rf /var/cache/apk/* 
+    && rm -rf /var/cache/apk/* 
 
 RUN sed -i 's/CustomLog logs\/access.log combined/CustomLog logs\/access.log combined env=!dontlog/g' /etc/apache2/httpd.conf && mkdir -p /run/apache2/
 
@@ -52,20 +52,22 @@ RUN set -x \
 
 RUN echo "0 6 * * 0 /usr/bin/certbot renew --no-self-upgrade" >> /etc/crontabs/root
 
-RUN mkdir -p /etc/apache2/crs && cd /etc/apache2/crs && \
-	git clone https://github.com/SpiderLabs/owasp-modsecurity-crs.git /etc/apache2/crs && \
-	mv crs-setup.conf.example crs-setup.conf && \
-	echo "IncludeOptional /apache/conf/crs/rules/*.conf" >> /etc/apache2/httpd.conf \
-	echo "IncludeOptional /apache/conf/crs/*.conf" >> /etc/apache2/httpd.conf
+RUN mkdir -p /etc/apache2/crs && cd /etc/apache2/crs \
+	&& git clone https://github.com/SpiderLabs/owasp-modsecurity-crs.git /etc/apache2/crs \
+	&& mv crs-setup.conf.example crs-setup.conf \
+	&& echo "Include /etc/apache2/crs/*.conf" >> /etc/apache2/httpd.conf \
+	&& echo "Include /etc/apache2/crs/rules/*.conf" >> /etc/apache2/httpd.conf
 
 
 COPY --from=build /usr/src/modsecurity/modsecurity.conf-recommended  /etc/apache2/conf.d/modsecurity.conf
 COPY --from=build /usr/src/modsecurity/unicode.mapping  /etc/apache2/conf.d/unicode.mapping
 COPY --from=build /usr/lib/apache2/mod_security2.so /usr/lib/apache2/
 
+RUN sed -i "s/SecRuleEngine DetectionOnly/SecRuleEngine on/" /etc/apache2/conf.d/modsecurity.conf
 RUN chmod u=rwx,go=rx /usr/lib/apache2/mod_security2.so
 
-RUN echo "LoadModule security2_module /usr/lib/apache2/mod_security2.so" >> /etc/apache2/conf.d/security.conf
+RUN echo "LoadModule security2_module /usr/lib/apache2/mod_security2.so" >> /etc/apache2/conf.d/security.conf \
+    && sed -i "s/^#LoadModule unique_id_module/LoadModule unique_id_module/" /etc/apache2/httpd.conf
 
 VOLUME /etc/letsencrypt
 VOLUME /var/lib/letsencrypt
